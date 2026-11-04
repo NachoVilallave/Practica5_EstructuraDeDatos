@@ -111,9 +111,18 @@ public class EDLinkedHashSet<T> implements Set<T> {
 
     @SuppressWarnings("unchecked")
     public EDLinkedHashSet(int capacity, double loadFactor) {
-        //TODO Ejercicio 1
-        //la tabla se crea con new EDLinkedHashSet.Node[tamaño]
-        throw new UnsupportedOperationException("Ejercicio 1: por implementar");
+        if (capacity <= 0 || loadFactor <= 0) {
+            throw new IllegalArgumentException("La capacidad y el factor de carga deben ser mayores que cero.");
+        }
+
+        this.table = new EDLinkedHashSet.Node[capacity];
+        this.loadFactor = loadFactor;
+        this.rehashThreshold = (int) (capacity * loadFactor);
+        this.size = 0;
+
+        this.header = new Node();
+        this.header.prev = this.header;
+        this.header.next = this.header;
 
     }
 
@@ -122,14 +131,19 @@ public class EDLinkedHashSet<T> implements Set<T> {
     // ------------------------------------------------------------------
 
     private void linkLast(Node n) {
-        //TODO Ejercicio 2
-        throw new UnsupportedOperationException("Ejercicio 2: por implementar");
+        Node last = header.prev;
+        n.prev = last;
+        n.next = header;
+        last.next = n;
+        header.prev = n;
 
     }
 
     private void unlink(Node n) {
-        //TODO Ejercicio 2
-        throw new UnsupportedOperationException("Ejercicio 2: por implementar");
+        n.prev.next = n.next;
+        n.next.prev = n.prev;
+        n.prev = null;
+        n.next = null;
     }
 
     // ------------------------------------------------------------------
@@ -137,8 +151,17 @@ public class EDLinkedHashSet<T> implements Set<T> {
     // ------------------------------------------------------------------
 
     private Node findNode(Object item) {
-        //TODO Ejercicio 3
-        throw new UnsupportedOperationException("Ejercicio 3: por implementar");
+        int index = hash(item);
+        Node current = table[index];
+
+        while (current != null) {
+            if (equalsNull(current.data, item)) {
+                return current;
+            }
+            current = current.hnext;
+        }
+
+        return null;
     }
 
     // ------------------------------------------------------------------
@@ -147,8 +170,7 @@ public class EDLinkedHashSet<T> implements Set<T> {
 
     @Override
     public boolean contains(Object item) {
-        //TODO Ejercicio 4
-        throw new UnsupportedOperationException("Ejercicio 4: por implementar");
+        return findNode(item) != null;
     }
 
     // ------------------------------------------------------------------
@@ -157,8 +179,26 @@ public class EDLinkedHashSet<T> implements Set<T> {
 
     @Override
     public boolean add(T item) {
-        //TODO Ejercicio 5
-        throw new UnsupportedOperationException("Ejercicio 5: por implementar");
+        if (contains(item)) {
+            return false;
+        }
+
+        if (size >= rehashThreshold) {
+            rehash();
+        }
+
+        int index = hash(item);
+
+        Node n = new Node();
+        n.data = item;
+
+        n.hnext = table[index];
+        table[index] = n;
+
+        linkLast(n);
+
+        size++;
+        return true;
     }
 
     // ------------------------------------------------------------------
@@ -167,8 +207,26 @@ public class EDLinkedHashSet<T> implements Set<T> {
 
     @SuppressWarnings("unchecked")
     private void rehash() {
-        //TODO Ejercicio 6
-        throw new UnsupportedOperationException("Ejercicio 6: por implementar");
+        // 1. Calcular la nueva capacidad: 2 veces el tamaño anterior + 1
+        int newCapacity = table.length * 2 + 1;
+
+        // 2. Crear la nueva tabla de nodos y actualizar las variables del conjunto
+        Node[] newTable = new EDLinkedHashSet.Node[newCapacity];
+        this.table = newTable;
+        this.rehashThreshold = (int) (newCapacity * loadFactor);
+
+        // 3. Reubicar los nodos existentes recorriendo la lista de orden de inserción
+        Node current = header.next;
+        while (current != header) {
+            int index = hash(current.data);
+
+            // Insertar al principio de la nueva cubeta reutilizando el nodo actual
+            current.hnext = table[index];
+            table[index] = current;
+
+            // Avanzar al siguiente nodo en la lista
+            current = current.next;
+        }
     }
 
     // ------------------------------------------------------------------
@@ -177,8 +235,35 @@ public class EDLinkedHashSet<T> implements Set<T> {
 
     @Override
     public boolean remove(Object item) {
-        //TODO Ejercicio 7
-        throw new UnsupportedOperationException("Ejercicio 7: por implementar");
+        // 1. Calcular la cubeta correspondiente
+        int index = hash(item);
+        Node current = table[index];
+        Node prevInBucket = null;
+
+        // 2. Buscar el elemento en la cadena de la cubeta
+        while (current != null) {
+            if (equalsNull(current.data, item)) {
+                // Eliminar de la cadena simplemente enlazada de la cubeta (hnext)
+                if (prevInBucket == null) {
+                    table[index] = current.hnext;
+                } else {
+                    prevInBucket.hnext = current.hnext;
+                }
+
+                // Eliminar de la lista de orden de inserción usando el método del ejercicio 2
+                unlink(current);
+
+                // Actualizar tamaño y devolver true
+                size--;
+                return true;
+            }
+
+            prevInBucket = current;
+            current = current.hnext;
+        }
+
+        // Si el elemento no existe en el conjunto
+        return false;
     }
 
     // ------------------------------------------------------------------
@@ -187,8 +272,17 @@ public class EDLinkedHashSet<T> implements Set<T> {
 
     @Override
     public void clear() {
-        //TODO Ejercicio 8
-        throw new UnsupportedOperationException("Ejercicio 8: por implementar");
+        // 1. Vaciar todas las casillas de la tabla conservando su tamaño actual
+        for (int i = 0; i < table.length; i++) {
+            table[i] = null;
+        }
+
+        // 2. Reiniciar la lista circular doblemente enlazada
+        header.next = header;
+        header.prev = header;
+
+        // 3. Reiniciar el contador de elementos
+        size = 0;
     }
 
     // ------------------------------------------------------------------
@@ -201,15 +295,20 @@ public class EDLinkedHashSet<T> implements Set<T> {
 
         @Override
         public boolean hasNext() {
-            //TODO Ejercicio 9
-            throw new UnsupportedOperationException("Ejercicio 9: por implementar");
+            return current != header;
         }
 
         @Override
         public T next() {
-            //TODO Ejercicio 9
-            //Debe actualizar lastReturned para que lo use remove
-            throw new UnsupportedOperationException("Ejercicio 9: por implementar");
+            if (!hasNext()) {
+                throw new NoSuchElementException("No quedan más elementos en el conjunto.");
+            }
+
+            lastReturned = current;
+            T item = current.data;
+            current = current.next;
+
+            return item;
         }
 
         @Override
@@ -232,8 +331,12 @@ public class EDLinkedHashSet<T> implements Set<T> {
 
     @Override
     public boolean containsAll(Collection<?> c) {
-        //TODO Ejercicio 10
-        throw new UnsupportedOperationException("Ejercicio 10: por implementar");
+        for (Object item : c) {
+            if (!contains(item)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     // ------------------------------------------------------------------
@@ -241,7 +344,17 @@ public class EDLinkedHashSet<T> implements Set<T> {
     // ------------------------------------------------------------------
     @Override
     public boolean retainAll(Collection<?> c) {
-        //TODO Ejercicio 11
-        throw new UnsupportedOperationException("Ejercicio 11: por implementar");
+        boolean modified = false;
+        Iterator<T> it = iterator();
+
+        while (it.hasNext()) {
+            T item = it.next();
+            if (!c.contains(item)) {
+                it.remove();
+                modified = true;
+            }
+        }
+
+        return modified;
     }
 }
